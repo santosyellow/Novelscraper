@@ -1,5 +1,9 @@
-# Beginning  Date: 3/26/19 10:00AM
-# Completion Date: 3/26/19 3:00PM
+# -*- coding: utf-8 -*-
+
+# Encoding above makes it backwards compatible for Python 2
+
+# Beginning  Date: 3/26/19 3:25PM
+# Completion Date: 3/26/19 4:00PM
 
 from requests.packages.urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
@@ -8,7 +12,6 @@ import requests
 import bs4
 import sys
 import os
-
 
 exit_message = 'Thank you for using Wuxia Novelscraper, Come again!'
 
@@ -20,8 +23,8 @@ def requests_session(url):
 	requests_session.mount('http://', HTTPAdapter(max_retries=requests_retries))
 	proxies = {
 		'http': '149.56.46.36:8080',
-		'https': '198.211.99.23:3128'
-	} # Proxies from free-proxy.cz
+		'https': '198.27.67.35:3128'
+	} # Proxies from free-proxy.cz (They may reset connection after several downloads...)
 
 	response = requests_session.get(url, headers={'User-agent':bot_name}, proxies=proxies)
 
@@ -51,12 +54,12 @@ def remove_invalid_char(string):
 		return string
 
 def process_text(filename):
-    open(filename,'a+') # This makes sure the file exists. If it doesn't exist, it creates the file.
+    open(filename,'a+') # this line makes sure the file exists; if it doesn't, it creates the file.
     with open(filename,'r') as f:
         raw_data = f.readlines()
 
-    # The list that readlines() provides contains newline characters (\n)
-    # Wuwuro doesn't view a string with a newline and a string without as the same
+    # The list that readlines() provides contains newline characters: '\n'
+    # Wuwuro doesn't view a string with a newline and a string without AS the same
     # So we have to remove the newline characters for every item in the list
     processed_data = []
     for i in range(len(raw_data)):
@@ -65,7 +68,7 @@ def process_text(filename):
 
 
 ''' Start of the program '''
-app_version = '1.4.0'
+app_version = '2.0.0'
 logger = setup_custom_logger(app_version)
 bot_name = ('Wuwuro Bot %s' %app_version) # This will appear as our User-Agent
 
@@ -78,7 +81,7 @@ save_path = '' # !!!MUST create a folder with the novel name
 novel_url = '' # !!!MUST copy the whole URL here. EXCEPT the chapter number
 backup_url = '' # Sometimes the URL changes format so it's important to have the backup URL
 start_at_chap = 0 # * Change this based on where you want to start
-end_at_chap =  0 # * Change this based on where you want to END
+end_at_chap = 0 # * Change this based on where you want to END
 
 ''' END of changeable variables '''
 
@@ -124,10 +127,10 @@ for current_chapter in range(start_at_chap, end_at_chap + 1):
 		continue
 
 
-	''' Parsing the HTML File '''
+	''' Parsing/Processing the HTML File '''
 	soup = bs4.BeautifulSoup(response.text, 'html.parser')
-	chapter = soup.select('.fr-view p')
-	chapter_title = soup.select('.caption.clearfix h4')[0].text#find_title(chapter)
+	chapter = soup.select('.fr-view p') # A list data type. stores each paragraph in separate sections.
+	chapter_title = soup.select('.caption.clearfix h4')[0].text
 	print('Downloaded %s' % chapter_title)
 
 	''' Saving the chapter to a text file '''
@@ -139,7 +142,7 @@ for current_chapter in range(start_at_chap, end_at_chap + 1):
 		# For paragraph in chapter
 		for para in chapter:
 			with open(absolute_path,'a+') as f:
-				f.writelines(para.text)
+				f.writelines(para.text.encode('utf-8')) # Throws out error because the string is Unicode
 				# Retain the previous format. Empty line after each para.
 				f.writelines('\n')
 				f.writelines('')
