@@ -1,5 +1,5 @@
-# Beginning  Date: 8/1/18 11:50AM
-# Completion Date: 8/1/18 12:00PM
+# Beginning  Date: 3/26/19 10:00AM
+# Completion Date: 3/26/19 3:00PM
 
 from requests.packages.urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
@@ -10,15 +10,20 @@ import sys
 import os
 
 
-exit_message = 'Thank you for using Wuxia Novelscraper!'
+exit_message = 'Thank you for using Wuxia Novelscraper, Come again!'
 
-
+# Function that downloads the chapters
 def requests_session(url):
-	''' Try downloading the page 5 times before giving up '''
+	''' Tries downloading the page 5 times before giving up '''
 	requests_session = requests.Session()
 	requests_retries = Retry(total=5, backoff_factor=1, status_forcelist=[ 502, 503, 504 ])
 	requests_session.mount('http://', HTTPAdapter(max_retries=requests_retries))
-	response = requests_session.get(url, headers={'User-agent':bot_name})
+	proxies = {
+		'http': '149.56.46.36:8080',
+		'https': '198.211.99.23:3128'
+	} # Proxies from free-proxy.cz
+
+	response = requests_session.get(url, headers={'User-agent':bot_name}, proxies=proxies)
 
 	return response
 
@@ -46,38 +51,41 @@ def remove_invalid_char(string):
 		return string
 
 def process_text(filename):
-    open(filename,'a+') # this line makes sure the file exists; if it doesn't, it creates the file.
+    open(filename,'a+') # This makes sure the file exists. If it doesn't exist, it creates the file.
     with open(filename,'r') as f:
         raw_data = f.readlines()
 
-    # The list that readlines() provides contains newline characters: '\n'
-    # Wukano doesn't view a string with a newline and a string without AS the same
+    # The list that readlines() provides contains newline characters (\n)
+    # Wuwuro doesn't view a string with a newline and a string without as the same
     # So we have to remove the newline characters for every item in the list
     processed_data = []
     for i in range(len(raw_data)):
         processed_data.append(raw_data[i].replace('\n', ''))
     return processed_data
 
-''' Start of the program '''
-app_version = '1.3.1'
-logger = setup_custom_logger(app_version)
-bot_name = ('Wukano Bot %s' %app_version)
 
-print(bot_name)
-print()
+''' Start of the program '''
+app_version = '1.4.0'
+logger = setup_custom_logger(app_version)
+bot_name = ('Wuwuro Bot %s' %app_version) # This will appear as our User-Agent
+
+print(bot_name + '\n')
+
 
 
 ''' These are the changeable variables '''
-save_path = '' # * MUST create a folder with the novel name
-novel_url = '' # * MUST copy the whole URL here. EXCEPT the chapter number
-backup_url = '' # Sometimes the URL changes so it's important to have the backup URL
-start_at_chap = 0 # * MUST change this based on where you want to start
-end_at_chap = 0 # * MUST change this based on where you want to END
+save_path = '' # !!!MUST create a folder with the novel name
+novel_url = '' # !!!MUST copy the whole URL here. EXCEPT the chapter number
+backup_url = '' # Sometimes the URL changes format so it's important to have the backup URL
+start_at_chap = 0 # * Change this based on where you want to start
+end_at_chap =  0 # * Change this based on where you want to END
+
 ''' END of changeable variables '''
 
 
 
 for current_chapter in range(start_at_chap, end_at_chap + 1):
+
 	''' Starting the scraper '''
 	chapter_url = novel_url + str(current_chapter) # Join provided novel url and current chapter number to get the current chapter URL
 	backup_chapter_url = backup_url + str(current_chapter) # Same as above but using the backup URL
@@ -88,10 +96,11 @@ for current_chapter in range(start_at_chap, end_at_chap + 1):
 
 	# Checking if the chapter wasn't downloaded yet; if not, download the chapter
 	if (chapter_url not in downloaded_chapters and backup_chapter_url not in downloaded_chapters):
+
 		print('Downloading Chapter-%s (%s)' % (current_chapter, chapter_url))
 		response = requests_session(chapter_url)
-		
 		main_url = True
+
 		# If the chapter_url didn't work
 		if response.status_code != 200:
 			
@@ -105,6 +114,7 @@ for current_chapter in range(start_at_chap, end_at_chap + 1):
 				sys.exit() # Quit the program
 
 			main_url = False
+
 	else:
 		if chapter_url in downloaded_chapters:
 			print('%s was already downloaded before.' % chapter_url)
