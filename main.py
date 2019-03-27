@@ -2,16 +2,19 @@
 
 # Encoding above makes it backwards compatible for Python 2
 
-# Beginning  Date: 3/26/19 3:25PM
-# Completion Date: 3/26/19 4:00PM
+# Beginning  Date: 3/26/19 4:25PM
+# Completion Date: 3/27/19 9:35AM
 
 from requests.packages.urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 from logger import setup_custom_logger
+from sys import stdout
 import requests
 import bs4
 import sys
 import os
+import time
+
 
 exit_message = 'Thank you for using Wuxia Novelscraper, Come again!'
 
@@ -24,7 +27,7 @@ def requests_session(url):
 	proxies = {
 		'http': '149.56.46.36:8080',
 		'https': '198.27.67.35:3128'
-	} # Proxies from free-proxy.cz (They may reset connection after several downloads...)
+	} # Proxies from free-proxy.cz (Some proxies reset connection after several downloads...)
 
 	response = requests_session.get(url, headers={'User-agent':bot_name}, proxies=proxies)
 
@@ -68,7 +71,7 @@ def process_text(filename):
 
 
 ''' Start of the program '''
-app_version = '2.0.0'
+app_version = '2.1.0'
 logger = setup_custom_logger(app_version)
 bot_name = ('Wuwuro Bot %s' %app_version) # This will appear as our User-Agent
 
@@ -86,54 +89,51 @@ end_at_chap = 0 # * Change this based on where you want to END
 ''' END of changeable variables '''
 
 
+to_downloads_amount = end_at_chap - start_at_chap
+downloaded_amount = 0
 
+''' Starting the scraper '''
 for current_chapter in range(start_at_chap, end_at_chap + 1):
 
-	''' Starting the scraper '''
+	print('%s/%s chapters downloaded' % (downloaded_amount, to_downloads_amount)) # Only thing user sees outside of errors
+
 	chapter_url = novel_url + str(current_chapter) # Join provided novel url and current chapter number to get the current chapter URL
 	backup_chapter_url = backup_url + str(current_chapter) # Same as above but using the backup URL
 
 	''' Download the page source, Get the chapter, Log errors '''
-	''' Check if downloaded before '''
-	downloaded_chapters = process_text('downloaded_chapters.txt')
+	downloaded_chapters = process_text('downloaded_chapters.txt') # Log the succesfully-written chapters
 
-	# Checking if the chapter wasn't downloaded yet; if not, download the chapter
+	# Checking if the chapter was already downloaded
 	if (chapter_url not in downloaded_chapters and backup_chapter_url not in downloaded_chapters):
 
-		print('Downloading Chapter-%s (%s)' % (current_chapter, chapter_url))
 		response = requests_session(chapter_url)
 		main_url = True
 
-		# If the chapter_url didn't work
-		if response.status_code != 200:
+		if response.status_code != 200: # If the chapter_url didn't work
 			
 			logger.error('Failed to download %s' % chapter_url)
-			print('Trying backup URL...')
-			response = requests_session(backup_chapter_url)
+			response = requests_session(backup_chapter_url) # Try backup URL
 
 			# If the backup URL also didn't work
 			if response.status_code != 200:
-				logger.error('Backup URL also failed', exc_info=True)
+				logger.error('Backup URL failed', exc_info=True)
 				sys.exit() # Quit the program
 
 			main_url = False
 
-	else:
-		if chapter_url in downloaded_chapters:
-			print('%s was already downloaded before.' % chapter_url)
-		elif backup_chapter_url in downloaded_chapters:
-			print('%s was already downloaded before.' % backup_chapter_url)
-		print()
-		continue
+	# If it's already downloaded
+	elif chapter_url or backup_chapter_url in downloaded_chapters:
+		downloaded_amount += 1
+		stdout.write('\033[F') # Also put one here because "continue" reverts back to start of loop.
 
+		continue
 
 	''' Parsing/Processing the HTML File '''
 	soup = bs4.BeautifulSoup(response.text, 'html.parser')
 	chapter = soup.select('.fr-view p') # A list data type. stores each paragraph in separate sections.
 	chapter_title = soup.select('.caption.clearfix h4')[0].text
-	print('Downloaded %s' % chapter_title)
 
-	''' Saving the chapter to a text file '''
+	''' Saving the chapter to a txt file '''
 	filename = chapter_title + '.txt'
 	filename = remove_invalid_char(filename)
 	absolute_path = os.path.join(save_path, filename)
@@ -150,8 +150,6 @@ for current_chapter in range(start_at_chap, end_at_chap + 1):
 	except Exception as e:
 		logger.error('Failed to save to %s' % filename, exc_info=True)
 
-	print("Saved to '%s' " % filename)
-	
 	''' Add the correct URL to downloaded_chapters.txt'''
 	with open('downloaded_chapters.txt','a+') as f:
 		try:
@@ -163,11 +161,14 @@ for current_chapter in range(start_at_chap, end_at_chap + 1):
 			else:
 				f.writelines(backup_chapter_url)
 				f.writelines('\n')
-			print('Saved to downloaded chapters')
 			
 		except:
 			logger.error('Failed to write URL to downloaded_chapters.txt', exc_info=True)
-	print()
+
+	downloaded_amount += 1
+
+	# Clears everything back to the beginning of line.
+	stdout.write('\033[F') # \033[F is the ANSI escape sequence that clears it. print('\033[F', end='') for Python 3.
 
 print(exit_message)
 sys.exit()
