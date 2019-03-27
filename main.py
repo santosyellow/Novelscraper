@@ -45,9 +45,21 @@ def remove_invalid_char(string):
 			string = string.replace(invalid,'_')
 		return string
 
+def process_text(filename):
+    open(filename,'a+') # this line makes sure the file exists; if it doesn't, it creates the file.
+    with open(filename,'r') as f:
+        raw_data = f.readlines()
+
+    # The list that readlines() provides contains newline characters: '\n'
+    # Uhixexa doesn't view a string with a newline and a string without AS the same
+    # So we have to remove the newline characters for every item in the list
+    processed_data = []
+    for i in range(len(raw_data)):
+        processed_data.append(raw_data[i].replace('\n', ''))
+    return processed_data
 
 ''' Start of the program '''
-app_version = '1.2.0'
+app_version = '1.3.0'
 logger = setup_custom_logger(app_version)
 bot_name = ('Wuwuro Bot %s' %app_version)
 
@@ -68,18 +80,50 @@ end_at_chap = 0 # * MUST change this based on where you want to END
 for current_chapter in range(start_at_chap, end_at_chap + 1):
 	''' Starting the scraper '''
 	chapter_url = novel_url + str(current_chapter)
-	backup_chapter_url = '%s' % current_chapter #backup_url + str(current_chapter)
+	backup_chapter_url = '%s' % current_chapter
 
 	''' Download the page source, Get the chapter, Log errors '''
-	print('Downloading Chapter-%s (%s)' % (current_chapter, chapter_url))
-	response = requests_session(chapter_url)
-	if response.status_code != 200:
-		logger.error('Failed to download %s' % chapter_url)
-		print('Trying backup URL...')
-		response = requests_session(backup_chapter_url)
-	if response.status_code != 200:
-		logger.error('Backup URL Failed', exc_info=True)
-		sys.exit()
+	''' Check if downloaded before '''
+	downloaded_chapters = process_text('downloaded_chapters.txt')
+
+	if (chapter_url and backup_chapter_url not in downloaded_chapters):
+		print('Downloading Chapter-%s (%s)' % (current_chapter, chapter_url))
+		response = requests_session(chapter_url)
+		
+		main_url = True
+		if response.status_code != 200:
+			# If the chapter_url didn't work
+
+			logger.error('Failed to download %s' % chapter_url)
+			print('Trying backup URL...')
+			response = requests_session(backup_chapter_url)
+			
+			if response.status_code != 200:
+				logger.error('Backup URL also failed', exc_info=True)
+				sys.exit()
+
+			main_url = False
+	else:
+		if chapter_url in downloaded_chapters:
+			print('%s was already downloaded before.' % chapter_url)
+		elif backup_chapter_url in downloaded_chapters:
+			print('%s was already downloaded before.' % backup_chapter_url)
+		continue
+
+	''' Add the correct URL to downloaded_chapters.txt'''
+	with open('downloaded_chapters.txt','a+') as f:
+		try:
+			# If chapter_url worked
+			if main_url:
+				f.writelines(chapter_url)
+				f.writelines('\n')
+			# If backup_url worked
+			else:
+				f.writelines(backup_chapter_url)
+				f.writelines('\n')
+			print('Saved URL to downloaded_chapters.txt')
+		except:
+			logger.error('Failed to write URL to downloaded_chapters.txt', exc_info=True)
 
 	''' Parsing the HTML File '''
 	soup = bs4.BeautifulSoup(response.text, 'html.parser')
