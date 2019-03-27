@@ -1,5 +1,5 @@
-# Beginning  Date: 8/1/18 12:05AM
-# Completion Date: 8/1/18 12:40AM
+# Beginning  Date: 8/1/18 11:50AM
+# Completion Date: 8/1/18 12:00PM
 
 from requests.packages.urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
@@ -51,7 +51,7 @@ def process_text(filename):
         raw_data = f.readlines()
 
     # The list that readlines() provides contains newline characters: '\n'
-    # Uhixexa doesn't view a string with a newline and a string without AS the same
+    # Wukano doesn't view a string with a newline and a string without AS the same
     # So we have to remove the newline characters for every item in the list
     processed_data = []
     for i in range(len(raw_data)):
@@ -59,48 +59,50 @@ def process_text(filename):
     return processed_data
 
 ''' Start of the program '''
-app_version = '1.3.0'
+app_version = '1.3.1'
 logger = setup_custom_logger(app_version)
-bot_name = ('Wuwuro Bot %s' %app_version)
+bot_name = ('Wukano Bot %s' %app_version)
 
-print('%s:' % bot_name)
-
+print(bot_name)
+print()
 
 
 ''' These are the changeable variables '''
 save_path = '' # * MUST create a folder with the novel name
 novel_url = '' # * MUST copy the whole URL here. EXCEPT the chapter number
-backup_url = ''
+backup_url = '' # Sometimes the URL changes so it's important to have the backup URL
 start_at_chap = 0 # * MUST change this based on where you want to start
 end_at_chap = 0 # * MUST change this based on where you want to END
-''' These are the changeable variables '''
+''' END of changeable variables '''
 
 
 
 for current_chapter in range(start_at_chap, end_at_chap + 1):
 	''' Starting the scraper '''
-	chapter_url = novel_url + str(current_chapter)
-	backup_chapter_url = '%s' % current_chapter
+	chapter_url = novel_url + str(current_chapter) # Join provided novel url and current chapter number to get the current chapter URL
+	backup_chapter_url = backup_url + str(current_chapter) # Same as above but using the backup URL
 
 	''' Download the page source, Get the chapter, Log errors '''
 	''' Check if downloaded before '''
 	downloaded_chapters = process_text('downloaded_chapters.txt')
 
-	if (chapter_url and backup_chapter_url not in downloaded_chapters):
+	# Checking if the chapter wasn't downloaded yet; if not, download the chapter
+	if (chapter_url not in downloaded_chapters and backup_chapter_url not in downloaded_chapters):
 		print('Downloading Chapter-%s (%s)' % (current_chapter, chapter_url))
 		response = requests_session(chapter_url)
 		
 		main_url = True
+		# If the chapter_url didn't work
 		if response.status_code != 200:
-			# If the chapter_url didn't work
-
+			
 			logger.error('Failed to download %s' % chapter_url)
 			print('Trying backup URL...')
 			response = requests_session(backup_chapter_url)
-			
+
+			# If the backup URL also didn't work
 			if response.status_code != 200:
 				logger.error('Backup URL also failed', exc_info=True)
-				sys.exit()
+				sys.exit() # Quit the program
 
 			main_url = False
 	else:
@@ -108,31 +110,17 @@ for current_chapter in range(start_at_chap, end_at_chap + 1):
 			print('%s was already downloaded before.' % chapter_url)
 		elif backup_chapter_url in downloaded_chapters:
 			print('%s was already downloaded before.' % backup_chapter_url)
+		print()
 		continue
 
-	''' Add the correct URL to downloaded_chapters.txt'''
-	with open('downloaded_chapters.txt','a+') as f:
-		try:
-			# If chapter_url worked
-			if main_url:
-				f.writelines(chapter_url)
-				f.writelines('\n')
-			# If backup_url worked
-			else:
-				f.writelines(backup_chapter_url)
-				f.writelines('\n')
-			print('Saved URL to downloaded_chapters.txt')
-		except:
-			logger.error('Failed to write URL to downloaded_chapters.txt', exc_info=True)
 
 	''' Parsing the HTML File '''
 	soup = bs4.BeautifulSoup(response.text, 'html.parser')
 	chapter = soup.select('.fr-view p')
-	chapter_title = soup.select('.caption.clearfix h4')[0].text
+	chapter_title = soup.select('.caption.clearfix h4')[0].text#find_title(chapter)
 	print('Downloaded %s' % chapter_title)
 
-
-	''' Saving it to a text file '''
+	''' Saving the chapter to a text file '''
 	filename = chapter_title + '.txt'
 	filename = remove_invalid_char(filename)
 	absolute_path = os.path.join(save_path, filename)
@@ -150,6 +138,22 @@ for current_chapter in range(start_at_chap, end_at_chap + 1):
 		logger.error('Failed to save to %s' % filename, exc_info=True)
 
 	print("Saved to '%s' " % filename)
+	
+	''' Add the correct URL to downloaded_chapters.txt'''
+	with open('downloaded_chapters.txt','a+') as f:
+		try:
+			# If chapter_url worked
+			if main_url:
+				f.writelines(chapter_url)
+				f.writelines('\n')
+			# If chapter_url didn't work but backup_url worked
+			else:
+				f.writelines(backup_chapter_url)
+				f.writelines('\n')
+			print('Saved to downloaded chapters')
+			
+		except:
+			logger.error('Failed to write URL to downloaded_chapters.txt', exc_info=True)
 	print()
 
 print(exit_message)
